@@ -1,0 +1,67 @@
+********************************************************************************
+* Book: Econometric Evaluation of Socio-Economic Programs Theory and Applications
+* Author: Giovanni Cerulli
+* Publisher: Springer
+* Edition: Second
+********************************************************************************
+* CHAPTER 6 - Stata codes
+********************************************************************************
+* 
+clear all
+* 4 Application
+use smoking.dta , clear
+tsset state year
+des
+
+decode state , gen(state_string)
+preserve
+collapse (mean) cigsale if state_string!="California", by(year)
+rename cigsale cigsale_us_mean
+keep year cigsale_us_mean
+save cigsale_mean_us , replace
+restore
+use smoking , clear
+decode state , gen(state_string)
+preserve
+keep if state_string=="California"
+rename cigsale cigsale_calif
+keep year cigsale_calif
+save cigsale_calif , replace
+restore
+use cigsale_calif , clear
+merge 1:1 year using cigsale_mean_us
+save cigsale_us_calif , replace
+tw (line cigsale_calif year) ///
+(line cigsale_us_mean year , lpattern(dash)) , ///
+xline(1989) ytitle("Per capita cigarette consumption") ///
+legend(label(1 "California") label(2 "Rest of US")) scheme(s2mono) ///
+xlabel(1970(3)2000) xtitle("")
+
+sum cigsale_calif if year==1989
+global cig_cal_1989=r(mean)
+sum cigsale_us_mean if year==1989
+global cigsale_us_1989=r(mean)
+gen diff=$cigsale_us_1989-$cig_cal_1989
+gen new_us=cigsale_us_mean-diff
+tw(line cigsale_calif year) ///
+(line new_us year , lpattern(dash)) , ///
+xline(1989) ytitle("Per capita cigaretteconsumption") ///
+legend(label(1 "California") label(2 "Rest of US-centered")) scheme(s2mono) ///
+xlabel(1970(3)2000) xtitle("")
+
+sysuse smoking , clear
+tsset state year
+synth cigsale beer lnincome(1980&1985) retprice cigsale(1988) cigsale(1980) ///
+cigsale(1975), trunit(3) trperiod(1989) figure
+
+sysuse smoking , clear
+tsset state year
+global Y "cigsale"
+global X "beer lnincome(1980&1985) retprice cigsale(1988) cigsale(1980) cigsale(1975)"
+synth_runner $Y $X , trunit(3) trperiod(1989) gen_vars
+
+single_treatment_graphs , do_color(gray%15)
+effect_graphs
+pval_graphs
+
+* END
