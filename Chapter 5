@@ -6,9 +6,10 @@
 ********************************************************************************
 * CHAPTER 4 - Stata codes
 ********************************************************************************
-
-cd "~/Dropbox/Giovanni/MyBook/MyBookProgEvalNewEdition/Stata_Codes_by_Chapter/Datasets_CH_4"
-
+* DATASETS DOWNLOAD:
+https://www.dropbox.com/sh/ytmtdsf7tosg65y/AAAr3DLOgwFxcaXOZoaqY0kda?dl=0
+********************************************************************************
+clear all
 * 1.4.1 An Application of LATE
 * 1.4.1.1 LATE Estimation with Real Data
 use children.dta , clear
