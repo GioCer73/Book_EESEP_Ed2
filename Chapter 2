@@ -4,10 +4,12 @@
 * Publisher: Springer
 * Edition: Second
 ********************************************************************************
-* CHAPTER 2 - Stata codes
+* CHAPTER 2 - Methods Based on Selection on Observables
+********************************************************************************
+* Stata codes
 ********************************************************************************
 * DATASETS DOWNLOAD:
-https://www.dropbox.com/sh/49h2r2zugoav39h/AADDw1MvyoXfE5jWzEW7zjhxa?dl=0
+* https://www.dropbox.com/sh/49h2r2zugoav39h/AADDw1MvyoXfE5jWzEW7zjhxa?dl=0
 ********************************************************************************
 clear all
 * 2.6 Implementation and Application of Regression-Adjustment
