@@ -6,7 +6,9 @@
 ********************************************************************************
 * CHAPTER 6 - Stata codes
 ********************************************************************************
-* 
+* DATASETS DOWNLOAD:
+https://www.dropbox.com/sh/h6ziiubfbdnn1kt/AABNvwOSIXx4ggk0Zf6soiRAa?dl=0
+********************************************************************************
 clear all
 * 4 Application
 use smoking.dta , clear
