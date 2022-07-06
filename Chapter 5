@@ -1,0 +1,417 @@
+********************************************************************************
+* Book: Econometric Evaluation of Socio-Economic Programs Theory and Applications
+* Author: Giovanni Cerulli
+* Publisher: Springer
+* Edition: Second
+********************************************************************************
+* CHAPTER 4 - Stata codes
+********************************************************************************
+
+cd "~/Dropbox/Giovanni/MyBook/MyBookProgEvalNewEdition/Stata_Codes_by_Chapter/Datasets_CH_4"
+
+* 1.4.1 An Application of LATE
+* 1.4.1.1 LATE Estimation with Real Data
+use children.dta , clear
+set more off
+global Y weeksm // outcome
+cap drop morethan2
+gen morethan2=(kidcount>2)
+global D morethan2 // treatment
+global z samesex // instrument
+reg $Y $D
+qui sum $Y if $z == 1
+scalar mean_y_z1 = r(mean)
+qui sum $Y if $z == 0
+scalar mean_y_z0 = r(mean)
+count if $D == 1 & $z == 1
+scalar num_d_z1 = r(N)
+count if $z==1
+scalar num_z1 = r(N)
+scalar p_1_1 = num_d_z1/num_z1
+count if $D == 1 & $z == 0
+scalar num_d_z0 = r(N)
+count if $z==0
+scalar num_z0 = r(N)
+scalar p_1_0 = num_d_z0/num_z0
+scalar late = (mean_y_z1 - mean_y_z0)/(p_1_1 - p_1_0)
+di late
+ivreg $Y ($D = $z)
+
+global xvars agem agefstm boy1st boy2nd black hispan othrace
+probit $z $Y $xvars if $D==1
+predict p_z1 , p // that is equal to E(z|Y,D=1,x)
+probit $z $Y $xvars if $D==0
+predict p_z0 , p // that is equal to E(z|Y,D=0,x)
+probit $z $xvars
+predict p_z , p // that is equal to p(z=1|x)
+gen Ek = 1 - $D*(1-p_z1)/(1-p_z) - (1-$D)*p_z0/p_z
+replace Ek=1 if Ek>=1 & Ek!=.
+replace Ek=0 if Ek<=0 & Ek!=.
+regress $Y $D $xvars [pweight=Ek]
+margins , at($D=1) atmeans
+sum $Y if $D==1
+margins , at($D=0) atmeans
+sum $Y if $D==0
+
+cap drop y_1est
+qui regress $Y $xvars [pweight=Ek] if $D==1
+predict y_1est
+sum y_1est [iweight=Ek]
+
+cap drop y_0est
+qui regress $Y $xvars [pweight=Ek] if $D==0
+predict y_0est
+sum y_0est [iweight=Ek]
+
+graph twoway ///
+(kdensity y_1est [aweight=Ek] , lpattern (solid)) ///
+(kdensity y_0est [aweight=Ek] , lpattern(dash)) , ///
+title("Outcome response distrfor compliers by treatment" , ///
+size(med)) xtitle(E(Y|x,D;compliers)) ///
+legend(label(1 "D=1: treated compliers") label(2 "D=0:untreated compliers")) ///
+note(Note: A linear form of the potential outcomes is assumed)
+
+cap drop late_x
+gen late_x = y_1est - y_0est
+tw (kdensity late_x [aweight=Ek]) , title(Distribution of LATE(x)) xtitle(LATE(x))
+
+
+* 1.4.1.2 LATE Estimation with Simulated Data
+clear
+set seed 10101
+set obs 5000
+gen z = uniform()>.5 
+sort z
+gen D1=rnormal()>0 
+gen D0=5+5*rnormal()>0 
+tostring D1 D0 , replace
+gen group=D1+D0
+encode group , generate(group2)
+la def gr_lab 1 never_taker 2 defier 3 complier 4 always_taker
+la values group2 gr_lab
+drop if group2==2
+destring D0 D1 , replace
+gen D=D0+z*(D1-D0)
+gen x=rnormal(0,1)
+gen y1 = 20 + 3*x + (rchi2(1)-1)
+gen y0 = 10 + 6*x + 5*rnormal(0,1)
+gen te=y1-y0 
+sum te
+gen y=y0+D0*(y1-y0)+z*(D1-D0)*(y1-y0)
+sum te if group2==3
+scalar LATE_dgp=r(mean)
+di LATE_dgp
+
+qui reg y if z==1
+scalar yz1=_b[_cons]
+qui reg y if z==0
+scalar yz0=_b[_cons]
+qui reg D if z==1
+scalar Dz1=_b[_cons]
+qui reg D if z==0
+scalar Dz0=_b[_cons]
+scalar wald=(yz1-yz0)/(Dz1-Dz0)
+di wald
+
+count if group2==3
+scalar Num_compl=_N*(Dz1-Dz0)
+di Num_compl
+
+probit z x
+cap drop p_zx
+predict p_zx , p
+cap drop k
+gen k = 1-D*(1-z)/(1-p_zx)-(1-D)*z/p_zx
+sum k
+scalar sc_Ek=r(mean)
+di sc_Ek
+cap drop kx
+gen kx=k*x
+sum kx
+scalar sc_Ekx=r(mean)
+scalar sc_ExD1D0=sc_Ekx/sc_Ek
+di sc_ExD1D0
+sum x if group2==3
+
+probit z y x if D==1
+predict p_z1 , p 
+probit z y x if D==0
+predict p_z0 , p 
+probit z x
+predict p_z , p 
+gen Ek = 1- D*(1-p_z1)/(1-p_z)-(1-D)*p_z0/p_z
+replace Ek=1 if Ek>=1 & Ek!=.
+replace Ek=0 if Ek<=0 & Ek!=.
+regress y D x [pweight=Ek]
+
+margins , at(D=1) atmeans
+margins , at(D=0) atmeans
+
+cap drop y_1dgp
+gen y_1dgp= 20+3*x if D==1 & group2==3
+cap drop y_0dgp
+gen y_0dgp= 10+6*x if D==0 & group2==3
+graph twoway ///
+(kdensity y_1dgp , lpattern (solid)) ///
+(kdensity y_0dgp , lpattern(dash)) , ///
+title("Outcome response distrfor compliers by treatment in DGP" , size(med)) ///
+xtitle(E(Y|x,D;compliers)) ///
+legend(label(1 "D=1: treated compliers") label(2 "D=0: untreated compliers")) ///
+note(Note: A linear form of the potential outcomes is assumed)
+
+qui regress y x [pweight=Ek] if D==1
+predict y_1est
+qui regress y x [pweight=Ek] if D==0
+predict y_0est
+
+graph twoway ///
+(kdensity y_1est [aweight=Ek], lpattern (solid)) ///
+(kdensity y_0est [aweight=Ek], lpattern(dash)) , ///
+title("Outcome response distrfor compliers by treatment in estimation" , size(med)) ///
+xtitle(E(Y|x,D;compliers)) legend(label(1 "D=1: treated compliers") label(2 "D=0: untreated compliers")) ///
+note(Note: A linear form of the potential outcomes is assumed)
+
+
+* 1.4.2 An Application of RDD by Simulation
+* 1.4.2.1 Simulating Sharp RDD
+clear all
+set scheme s1mono
+set obs 1000 
+set seed 1010 
+gen s = 10 + 5 * invnorm(uniform())
+global s_star = 10
+gen x=s-$s_star 
+gen w=1 if s > $s_star 
+replace w=0 if s <= $s_star
+gen y1 = 600+6.5*x-2*x^2+0.001*x^3+300*invnorm(uniform())
+gen y0 = 200+6.5*x-0.20*x^2+0.01*x^3+300*invnorm(uniform())
+gen y=y0+w*(y1-y0) 
+
+twoway ///
+hist y if s>$s_star, barw(60) bcolor(gray) || ///
+hist y if s<$s_star , barw(60) bcolor(black) ///
+legend(order(1 "Right side" 2 "Left side") pos(11) col(1) ring(0)) ///
+xtitle() ytitle(Frequency) ylabel()
+
+hist s , xline(10)
+
+gen wx=w*x
+gen wx2=w*x^2
+gen wx3=w*x^3
+
+gen x2=x^2
+gen x3=x^3
+reg y w x wx 
+
+predict y_hat_l , xb 
+
+graph twoway ///
+(scatter y s if s>=$s_star , clstyle(p1)) ///
+(scatter y s if s<=$s_star , clstyle(p1)) ///
+(scatter y_hat_l s if s>=$s_star , msymbol(o)) ///
+(scatter y_hat_l s if s<=$s_star , msymbol(o)) ///
+, xline($s_star, lpattern(dash)) ///
+title("Sharp–RDD – Parametric linear regression") ///
+legend( label(1 "Right Actual Data") label(2 "Left Actual Data") ///
+label(3 "Right Prediction") label(4 "Left Prediction"))
+
+reg y w x x2 x3 wx wx2 wx3
+predict y_hat , xb 
+
+graph twoway ///
+(scatter y s if s>=$s_star , clstyle(p1)) ///
+(scatter y s if s<=$s_star , clstyle(p1)) ///
+(scatter y_hat s if s>=$s_star , msymbol(o)) ///
+(scatter y_hat s if s<=$s_star , msymbol(o)) ///
+, xline($s_star, lpattern(dash)) ///
+title("Sharp–RDD – Parametric Polynomial Regression") ///
+legend( label(1 "Right Actual Data") label(2 "Left Actual Data") ///
+label(3 "Right Prediction") label(4 "Left Prediction"))
+
+global bendw 5 
+capture drop f0 f1
+lpoly y s if s<$s_star , gen(f0) at(s) k(tri) bw($bendw) deg(3) nogr
+lpoly y s if s>=$s_star, gen(f1) at(s) k(tri) bw($bendw) deg(3) nogr
+
+graph twoway ///
+(scatter y s if s>=$s_star , clstyle(p1)) ///
+(scatter y s if s<=$s_star , clstyle(p1)) ///
+(scatter f0 s if s<$s_star, msize(medsmall) msymbol(o)) ///
+(scatter f1 s if s>=$s_star, msize(medsmall) msymbol(o)) ///
+, xline($s_star, lpattern(dash)) ///
+title("Sharp RDD – Local polynomial regression (LPR)") ///
+legend(label(1 "Right actual data") label(2 "Left actual data") ///
+label(3 "Right LPR prediction") label(4 "Left LPR prediction")) ///
+note(Bandwidth = $bendw)
+
+cap drop f0 f1
+gen z=$s_star
+qui lpoly y s if s<$s_star, gen(f0) at(z) k(tri) bw($bendw) deg(3) nogr
+qui lpoly y s if s>=$s_star, gen(f1) at(z) k(tri) bw($bendw) deg(3) nogr
+scalar ate=f1[1]-f0[1]
+display ate
+
+* Program "rdd_s"
+capture program drop rdd_s
+prog rdd_s, rclass
+version 13
+args deg ker band cut
+cap drop f0 
+cap drop f1
+cap drop z
+gen z=`cut'
+qui lpoly y s if s<`cut', gen(f0) at(z) k(`ker') bw(`band') deg(`deg') nogr
+qui lpoly y s if s>=`cut', gen(f1) at(z) k(`ker') bw(`band') deg(`deg') nogr
+return scalar ate=f1[1]-f0[1]
+end
+
+rdd_s 3 tri 5 10
+return list
+bootstrap r(ate), reps(50) seed(101): rdd_s 3 tri 5 10
+
+rdd_s 1 tri 5 10
+return list
+rd y s , z0($s_star) bw($bendw)
+rd y s , z0($s_star) bw($bendw) mbw(10(10)200) bdep
+rd y s , z0($s_star)
+
+
+* 1.4.2.2 Fuzzy RDD
+clear all
+set seed 10101
+set scheme s1mono
+set obs 1000 
+gen s = -1+2*runiform()
+gen T=(s>=0)
+gen v = rnormal(0,1)
+gen w = (-0.5+T+s+v>=0)
+gen y1 = 2 + s + s^2 + 3*s^3 + invnorm(uniform())
+gen y0 = 1 + s + s^2 + 3*s^3 + invnorm(uniform())
+gen y = y0 + w*(y1-y0)
+
+gen s2 = s^2
+gen s3 = s^3
+reg w T s s2 s3
+ivreg y (w=T) s s2 s3
+
+global s_star 0
+global bendw 5
+
+cap drop f0 
+cap drop f1
+lpoly y s if s<$s_star, gen(f0) at(s) k(tri) bw($bendw) deg(3) nogr
+lpoly y s if s>=$s_star, gen(f1) at(s) k(tri) bw($bendw) deg(3) nogr
+
+graph twoway ///
+(scatter y s if s>=$s_star , clstyle(p1)) ///
+(scatter y s if s<=$s_star , clstyle(p1)) ///
+(scatter f0 s if s<$s_star, msize(medsmall) msymbol(o)) ///
+(scatter f1 s if s>=$s_star, msize(medsmall) msymbol(o)) ///
+, xline($s_star, lpattern(dash)) ///
+title("Fuzzy–RDD – Outcome Non–parametric Local Linear Regression" size(medlarge)) ///
+legend(label(1 "Right Actual Data") label(2 "Left Actual Data") ///
+label(3 "Right LLR Prediction") label(4 "Left LLR Prediction")) ///
+note(Bandwidth = $bendw)
+
+global s_star 0
+global bendw 5 
+capture drop f0 f1
+lpoly w s if s<$s_star, gen(g0) at(s) k(tri) bw($bendw) deg(3) nogr
+lpoly w s if s>=$s_star, gen(g1) at(s) k(tri) bw($bendw) deg(3) nogr
+
+graph twoway ///
+(scatter w s if s>=$s_star & w==1 , clstyle(p1)) ///
+(scatter w s if s<=$s_star & w==0, clstyle(p1)) ///
+(scatter g0 s if s<$s_star, msize(medsmall) msymbol(o)) ///
+(scatter g1 s if s>=$s_star, msize(medsmall) msymbol(o)) ///
+, xline($s_star, lpattern(dash)) ///
+title("Fuzzy–RDD – Probability Non–parametric Local Linear Regression") ///
+legend(label(1 "Right Actual Data") label(2 "Left Actual Data") ///
+label(3 "Right LLR Prediction") label(4 "Left LLR Prediction")) ///
+note(Bandwidth = $bendw)
+
+* Program "rdd_f"
+capture program drop rdd_f
+prog rdd_f, rclass
+version 13
+args deg ker band cut
+* Outcome discontinuity
+cap drop z 
+cap drop f0 
+cap drop f1
+gen z=`cut'
+cap drop f0
+cap drop f1
+qui lpoly y s if s<`cut', gen(f0) at(z) k(`ker') bw(`band') deg(`deg') nogr
+qui lpoly y s if s>=`cut', gen(f1) at(z) k(`ker') bw(`band') deg(`deg') nogr
+scalar disc_y=f1[1]-f0[1]
+* Probability discontinuity
+cap drop g0 
+cap drop g1
+qui lpoly w s if s<`cut', gen(g0) at(z) k(`ker') bw(`band') deg(`deg') nogr
+qui lpoly w s if s>=`cut', gen(g1) at(z) k(`ker') bw(`band') deg(`deg') nogr
+scalar disc_w=g1[1]-g0[1]
+return scalar ate=disc_y/disc_w
+end
+
+rdd_f 3 tri 5 0
+return list
+bootstrap r(ate), reps(10): rdd_f 3 tri 5 0
+
+rdd_f 1 tri 5 0
+return list
+rd y w s , z0(0) bw(5)
+rd y w s , z0(0)
+
+mat def A=J(6,2,.)
+local k=1
+foreach i of numlist 1000 10000 50000 100000 200000 300000 {
+clear
+set seed 10101
+set obs `i'
+gen s = -1+2*runiform()
+gen T=(s>=0)
+gen v = rnormal(0,1)
+gen w = (-0.5+T+s+v>=0)
+gen y1 = 2 + s + s^2 + 3*s^3 + invnorm(uniform())
+gen y0 = 1 + s + s^2 + 3*s^3 + invnorm(uniform())
+gen y = y0 + w*(y1-y0)
+qui rd y w s , z0(0)
+matrix A[`k',1]=_b[lwald]
+matrix A[`k',2]=`i'
+local k=`k'+1
+}
+matrix colnames A = Wald_est Sample_size
+mat list A
+rd y w s , z0(0) mbw(10(10)100) bdep
+
+
+* 1.4.3 An Application of RDD to real data
+use census3 , clear
+gen y=age5_9_sum2
+gen s=povrate60 
+global s_star=59.19
+gen w=(s > $s_star)
+global est_poly_order = 2  
+global bias_poly_order = 4 
+rdrobust y s, c($s_star) all p($est_poly_order) q($bias_poly_order)
+
+rdplot y s , binselect(es) c($s_star) p($est_poly_order) q($bias_poly_order) ///
+graph_options( ///
+xtitle("Poverty") ///
+ytitle("Mortality") ///
+title("Sharp-RDD outcome discontinuity graph") ///
+subtitle("Ludwig and Miller (2007)"))
+
+* 1.4.3.2 Real application of Fuzzy RDD
+use jpe_fl, clear
+keep if lcs_sample==1
+gen y=pdvrwage_y 
+gen s=test_lcs_min 
+gen D=awards_hsd4 
+global s_star=0 
+global est_poly_order = 2 
+global bias_poly_order = 4 
+rdrobust y s, c($s_star) fuzzy(D) all p($est_poly_order) q($bias_poly_order)
+
+* END
