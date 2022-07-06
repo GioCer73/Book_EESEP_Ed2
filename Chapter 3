@@ -6,12 +6,12 @@
 ********************************************************************************
 * CHAPTER 3 - Stata codes
 ********************************************************************************
-
-cd "~/Dropbox/Giovanni/MyBook/MyBookProgEvalNewEdition/Stata_Codes_by_Chapter/Datasets_CH_3"
-use fertil2.dta , clear
-
+* DATASETS DOWNLOAD:
+https://www.dropbox.com/sh/bwlcgt0ejdzidaq/AABKz5VBnrdDu2Dkd9ZcRkI-a?dl=0
+********************************************************************************
+clear all
 * 1.5.3 An Application to Determine the Effect of Education on Fertility
-
+use fertil2.dta , clear
 xi: reg children educ7
 estimates store DIM
 
