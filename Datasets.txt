@@ -1,0 +1,3 @@
+Link to download the datasets for running the Stata codes from the book "Econometric Evaluation of Socio-Economic Programs Theory and Applications", Springer (AUTHOR: Dr. Giovanni Cerulli, CNR-IRCRES):
+
+https://www.dropbox.com/s/3ahedpw39uuf29y/Datasets.zip?dl=0
